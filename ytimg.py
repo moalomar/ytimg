@@ -30,7 +30,8 @@ links = [
 ]
 
 
-async def fetch(video_id, dirname, session, images, total_tasks, task_number):
+async def fetch(video_id, dirname, session, images):
+    filepath = '404 NOT FOUND'
     for i in images:
         async with session.get(links[i].format(video_id)) as response:
             if response.status == 200:
@@ -38,21 +39,27 @@ async def fetch(video_id, dirname, session, images, total_tasks, task_number):
                 filepath = os.path.join(dirname, filename)
                 with open(filepath, 'wb') as file:
                     file.write(await response.read())
-                print(total_tasks - task_number)
-                return filepath
-    print(total_tasks - task_number)
-    return None
+                break
+    global count, digits
+    padding = ' ' * (digits - len(str(count)))
+    print(f'{count}{padding}    {filepath}')
+    count -= 1
+    return filepath
 
 
 async def create_tasks(videos_ids, dirname, images):
     async with aiohttp.ClientSession() as session:
         tasks = []
-        for task_number, video_id in enumerate(videos_ids):
-            task = asyncio.create_task(fetch(video_id, dirname, session, images, len(videos_ids), task_number))
+        for video_id in videos_ids:
+            task = asyncio.create_task(fetch(video_id, dirname, session, images))
             tasks.append(task)
         return await asyncio.gather(*tasks)
 
 
+count = digits = 0
 def download(videos_ids, dirname, images=range(len(links))):
+    global count, digits
+    count = len(videos_ids)
+    digits = len(str(count))
     os.makedirs(dirname, exist_ok=True)
     return asyncio.run(create_tasks(videos_ids, dirname, images))
